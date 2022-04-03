@@ -4,28 +4,52 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 
 app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
 
-@app.message("hello")
-def message_hello(message, say):
+
+@app.message("buy")
+def message_buy(message, say):
+    # only redpond to DM
+    if message["channel_type"] != "im":
+        return
+
     say(
+        text="failed to purchase action",
         blocks=[
             {
                 "type": "section",
-                "text": {"type": "mrkdwn", "text": f"Hey there <@{message['user']}>!"},
-                "accessory": {
-                    "type": "button",
-                    "text": {"type": "plain_text", "text":"Click Me"},
-                    "action_id": "button_click"
-                }
-            }
+                "text": {"type": "mrkdwn", "text": "Confirm Purchase\nPrice: *120円*"},
+            },
+            {
+                "type": "actions",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Buy", "emoji": True},
+                        "style": "primary",
+                        "action_id": "approve_buy_action",
+                    },
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Cancel", "emoji": True},
+                        "style": "danger",
+                        "action_id": "cancel_buy_action",
+                    },
+                ],
+            },
         ],
-        text=f"Hey there <@{message['user']}>!"
     )
 
-@app.action("button_click")
-def action_button_click(body, ack, say):
-    # アクションを確認したことを即時で応答します
+
+@app.action("approve_buy_action")
+def approve_buy_action(body, ack, say):
     ack()
-    say(f"<@{body['user']['id']}> clicked the button")
+    say(f"<@{body['user']['id']}> approved")
+
+
+@app.action("cancel_buy_action")
+def cancel_buy_action(body, ack, say):
+    ack()
+    say(f"<@{body['user']['id']}> canceled")
+
 
 if __name__ == "__main__":
     SocketModeHandler(app, os.environ["SLACK_APP_TOKEN"]).start()
