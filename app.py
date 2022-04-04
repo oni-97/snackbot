@@ -1,4 +1,6 @@
+import json
 import os, re
+from tabnanny import check
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
@@ -31,12 +33,14 @@ def message_buy(message, say):
                         "type": "button",
                         "text": {"type": "plain_text", "text": "Buy", "emoji": True},
                         "style": "primary",
-                        "action_id": "approve_buy_action",
+                        "value": price,
+                        "action_id": "take_buy_action",
                     },
                     {
                         "type": "button",
                         "text": {"type": "plain_text", "text": "Cancel", "emoji": True},
                         "style": "danger",
+                        "value": price,
                         "action_id": "cancel_buy_action",
                     },
                 ],
@@ -45,12 +49,12 @@ def message_buy(message, say):
     )
 
 
-@app.action("approve_buy_action")
-def approve_buy_action(body, ack):
+@app.action("take_buy_action")
+def take_buy_action(payload, body, ack):
     # Acknowledge the action
     ack()
 
-    price = extract_price_from_body(body)
+    price = int(payload["value"])
     # button pushed, update message
     result = app.client.chat_update(
         channel=body["channel"]["id"],
@@ -76,16 +80,6 @@ def approve_buy_action(body, ack):
         )
 
 
-def extract_price_from_body(body):
-    text = body["message"]["blocks"][0]["text"]["text"]
-    pattern = re.compile("^Confirm\sPurchase\\nPrice:\s\*([1-9][0-9]*)円\*$")
-    if pattern.match(text):
-        price_str = re.search(r"([1-9][0-9]*)", text).group()
-        return int(price_str)
-    else:
-        return 0
-
-
 def add_purchase_data_to_db(user_id, price):
     if price < 0:
         print("Error:", price, "is invalid")
@@ -97,11 +91,11 @@ def add_purchase_data_to_db(user_id, price):
 
 
 @app.action("cancel_buy_action")
-def cancel_buy_action(body, ack):
+def cancel_buy_action(payload, body, ack):
     # Acknowledge the action
     ack()
 
-    price = extract_price_from_body(body)
+    price = int(payload["value"])
     # button pushed, update message
     result = app.client.chat_update(
         channel=body["channel"]["id"],
@@ -109,6 +103,165 @@ def cancel_buy_action(body, ack):
         text=f"*canceled* purchase: {price}円",
         blocks=list(),
     )
+
+
+# listenig and responding to "pay <natural number>"
+@app.message(re.compile("^(\s*)(pay)(\s+)([1-9][0-9]*)(\s*)$"))
+def message_pay(message, say):
+    # only redpond to DM
+    if message["channel_type"] != "im":
+        return
+
+    price = message["text"].split()[1]
+
+    if is_need_to_pay(price):
+        say(
+            text="failed to purchase action",
+            blocks=[
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"Confirm Payment\nPrice: *{price}円*",
+                    },
+                },
+                {
+                    "type": "actions",
+                    "elements": [
+                        {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "Pay",
+                                "emoji": True,
+                            },
+                            "style": "primary",
+                            "value": price,
+                            "action_id": "take_pay_action",
+                        },
+                        {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "Cancel",
+                                "emoji": True,
+                            },
+                            "style": "danger",
+                            "value": price,
+                            "action_id": "cancel_pay_action",
+                        },
+                    ],
+                },
+            ],
+        )
+    else:
+        say(text=f"*No need* to pay {price}円")
+
+
+def is_need_to_pay(price):
+    # check: price>=unpaid
+    return True
+
+
+@app.action("cancel_pay_action")
+def cancel_pay_action(payload, body, ack):
+    # Acknowledge the action
+    ack()
+
+    price = payload["value"]
+    # button pushed, update message
+    result = app.client.chat_update(
+        channel=body["channel"]["id"],
+        ts=body["message"]["ts"],
+        text=f"*canceled* payment: {price}円",
+        blocks=list(),
+    )
+
+
+@app.action("take_pay_action")
+def take_pay_action(payload, body, ack, say):
+    # Acknowledge the action
+    ack()
+
+    price = payload["value"]
+    # button pushed, update message
+    result = app.client.chat_update(
+        channel=body["channel"]["id"],
+        ts=body["message"]["ts"],
+        text=f"paying {price}円 ...",
+        blocks=list(),
+    )
+
+    # post message of payment approve to admin user
+    open_admin_im = app.client.conversations_open(
+        users=os.environ.get("SLACK_APP_ADMIN_USER")
+    )
+    user_id = body["user"]["id"]
+    button_value = json.dumps(
+        {
+            "price": price,
+            "payer_id": user_id,
+            "ts_of_paying_msg": body["message"]["ts"],
+        }
+    )
+    say(
+        channel=open_admin_im["channel"]["id"],
+        text="approve payment",
+        blocks=[
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"Approve Payment\nPrice: *{price}円*\nUser: * <@{user_id}>*",
+                },
+            },
+            {
+                "type": "actions",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Approve",
+                            "emoji": True,
+                        },
+                        "style": "primary",
+                        "value": button_value,
+                        "action_id": "approve_pay_action",
+                    },
+                    {
+                        "type": "button",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Reject",
+                            "emoji": True,
+                        },
+                        "style": "danger",
+                        "value": button_value,
+                        "action_id": "reject_pay_action",
+                    },
+                ],
+            },
+        ],
+    )
+
+
+@app.action("approve_pay_action")
+def approve_pay_action(payload, body, ack):
+    # Acknowledge the action
+    ack()
+
+    value = json.loads(payload["value"])
+    print("approve_pay_action")
+
+
+@app.action("reject_pay_action")
+def reject_pay_action(payload, body, ack):
+    # Acknowledge the action
+    ack()
+
+    value = json.loads(payload["value"])
+    print("reject_pay_action")
 
 
 if __name__ == "__main__":
