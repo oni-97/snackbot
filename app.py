@@ -5,6 +5,7 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
 
 
+# listenig and responding to "buy <natural number>"
 @app.message(re.compile("^(\s*)(buy)(\s+)([1-9][0-9]*)(\s*)$"))
 def message_buy(message, say):
     # only redpond to DM
@@ -20,7 +21,7 @@ def message_buy(message, say):
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": "Confirm Purchase\nPrice: *" + price + "円*",
+                    "text": f"Confirm Purchase\nPrice: *{price}円*",
                 },
             },
             {
@@ -45,19 +46,41 @@ def message_buy(message, say):
 
 
 @app.action("approve_buy_action")
-def approve_buy_action(body, ack, say):
+def approve_buy_action(body, ack):
+    # Acknowledge the action
     ack()
-    user_id = body["user"]["id"]
+
     price = extract_price_from_body(body)
+    # button pushed, update message
+    result = app.client.chat_update(
+        channel=body["channel"]["id"],
+        ts=body["message"]["ts"],
+        text=f"purchasing...",
+        blocks=list(),
+    )
+
+    # insert data into DB and update message responding to the result
+    user_id = body["user"]["id"]
     if add_purchase_data_to_db(user_id, price):
-        say(f"<@{body['user']['id']}> approved")
+        app.client.chat_update(
+            channel=result["channel"],
+            ts=result["ts"],
+            text=f"*success* to purchase: {price}円",
+        )
+    else:
+        admin_user = os.environ.get("SLACK_APP_ADMIN_USER")
+        app.client.chat_update(
+            channel=result["channel"],
+            ts=result["ts"],
+            text=f"`fail to purchase: {price}円`\n`contact <@{admin_user}>`",
+        )
 
 
 def extract_price_from_body(body):
     text = body["message"]["blocks"][0]["text"]["text"]
-    pattern = re.compile("^Confirm\sPurchase\\nPrice:\s\*(\d+)円\*$")
+    pattern = re.compile("^Confirm\sPurchase\\nPrice:\s\*([1-9][0-9]*)円\*$")
     if pattern.match(text):
-        price_str = text.replace("Confirm Purchase\nPrice: *", "").replace("円*", "")
+        price_str = re.search(r"([1-9][0-9]*)", text).group()
         return int(price_str)
     else:
         return 0
@@ -74,9 +97,18 @@ def add_purchase_data_to_db(user_id, price):
 
 
 @app.action("cancel_buy_action")
-def cancel_buy_action(body, ack, say):
+def cancel_buy_action(body, ack):
+    # Acknowledge the action
     ack()
-    say(f"<@{body['user']['id']}> canceled")
+
+    price = extract_price_from_body(body)
+    # button pushed, update message
+    result = app.client.chat_update(
+        channel=body["channel"]["id"],
+        ts=body["message"]["ts"],
+        text=f"*canceled* purchase: {price}円",
+        blocks=list(),
+    )
 
 
 if __name__ == "__main__":
