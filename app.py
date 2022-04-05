@@ -192,10 +192,7 @@ def take_pay_action(payload, body, ack, say):
         blocks=list(),
     )
 
-    # post message of payment approve to admin user
-    open_admin_im = app.client.conversations_open(
-        users=os.environ.get("SLACK_APP_ADMIN_USER")
-    )
+    # post message of payment approve to admin channel
     user_id = body["user"]["id"]
     button_value = json.dumps(
         {
@@ -206,7 +203,7 @@ def take_pay_action(payload, body, ack, say):
         }
     )
     say(
-        channel=open_admin_im["channel"]["id"],
+        channel=os.environ.get("SLACK_APP_ADMIN_CHANNEL"),
         text="approve payment",
         blocks=[
             {
@@ -256,10 +253,11 @@ def approve_pay_action(payload, body, ack):
     # approve button pushed, perform DB operation
     if deal_with_pay_action(value["payer_id"], value["price"]):
         # update admin message
+        action_user = body["user"]["id"]
         app.client.chat_update(
             channel=body["channel"]["id"],
             ts=body["message"]["ts"],
-            text=f"*Approved* Payment\nPrice: {value['price']}円\nUser:  <@{value['payer_id']}>",
+            text=f"<@{action_user}> *approved* Payment\nPrice: {value['price']}円\nUser:  <@{value['payer_id']}>",
             blocks=list(),
         )
 
@@ -304,12 +302,13 @@ def reject_pay_action(payload, body, ack):
     # Acknowledge the action
     ack()
 
+    action_user = body["user"]["id"]
     value = json.loads(payload["value"])
     # reject button pushed, update admin message
     app.client.chat_update(
         channel=body["channel"]["id"],
         ts=body["message"]["ts"],
-        text=f"*Rejected* Payment\nPrice: {value['price']}円\nUser:  <@{value['payer_id']}>",
+        text=f"<@{action_user}> *rejected* Payment\nPrice: {value['price']}円\nUser:  <@{value['payer_id']}>",
         blocks=list(),
     )
 
