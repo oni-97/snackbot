@@ -23,7 +23,7 @@ def message_buy(message, say):
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"Confirm Purchase\nPrice: *{price}円*",
+                    "text": f"Confirm Purchase\n• Price: *{price}円*",
                 },
             },
             {
@@ -122,7 +122,7 @@ def message_pay(message, say):
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": f"Confirm Payment\nPrice: *{price}円*",
+                        "text": f"Confirm Payment\n• Price: *{price}円*",
                     },
                 },
                 {
@@ -210,7 +210,7 @@ def take_pay_action(payload, body, ack, say):
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"Approve Payment\nPrice: *{price}円*\nUser: * <@{user_id}>*",
+                    "text": f"Payment request\n• Price: *{price}円*\n• User: *<@{user_id}>*",
                 },
             },
             {
@@ -257,7 +257,7 @@ def approve_pay_action(payload, body, ack):
         app.client.chat_update(
             channel=body["channel"]["id"],
             ts=body["message"]["ts"],
-            text=f"<@{action_user}> *approved* Payment\nPrice: {value['price']}円\nUser:  <@{value['payer_id']}>",
+            text=f"*<@{action_user}> approved* payment\n• Price: {value['price']}円\n• User:  <@{value['payer_id']}>",
             blocks=list(),
         )
 
@@ -308,7 +308,7 @@ def reject_pay_action(payload, body, ack):
     app.client.chat_update(
         channel=body["channel"]["id"],
         ts=body["message"]["ts"],
-        text=f"<@{action_user}> *rejected* Payment\nPrice: {value['price']}円\nUser:  <@{value['payer_id']}>",
+        text=f"*<@{action_user}> rejected* payment\n• Price: {value['price']}円\n• User:  <@{value['payer_id']}>",
         blocks=list(),
     )
 
