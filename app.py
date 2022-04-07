@@ -3,7 +3,7 @@ import os, re
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
-from database.mysql_util import insert_purchase_data
+from database.mysql_util import insert_payment_data, insert_purchase_data
 
 
 app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
@@ -242,7 +242,7 @@ def approve_pay_action(payload, body, ack):
 
     value = json.loads(payload["value"])
     # approve button pushed, perform DB operation
-    if deal_with_pay_action(value["payer_id"], value["price"]):
+    if insert_payment_data(value["payer_id"], value["price"]):
         # update admin message
         action_user = body["user"]["id"]
         app.client.chat_update(
@@ -264,7 +264,7 @@ def approve_pay_action(payload, body, ack):
         app.client.chat_update(
             channel=body["channel"]["id"],
             ts=body["message"]["ts"],
-            text=f"*Error* Payment\nPrice: {value['price']}円\nUser:  <@{value['payer_id']}>",
+            text=f"`Error Payment`\nPrice: {value['price']}円\nUser:  <@{value['payer_id']}>",
             blocks=list(),
         )
 
@@ -275,17 +275,6 @@ def approve_pay_action(payload, body, ack):
             ts=value["ts_of_payer_msg"],
             text=f"`fail to pay: {value['price']}円`\n`contact <@{admin_user}>`",
         )
-
-
-def deal_with_pay_action(user_id, price):
-    price = int(price)
-    if price < 0:
-        print("Error:", price, "is invalid")
-        return False
-
-    # need DB operation
-    print(user_id, price)
-    return True
 
 
 @app.action("reject_pay_action")
