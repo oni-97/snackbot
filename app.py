@@ -2,6 +2,7 @@ import json
 import os, re
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
+from database.calculator import unpaid_amount
 
 from database.mysql_util import insert_payment_data, insert_purchase_data
 
@@ -299,6 +300,18 @@ def reject_pay_action(payload, body, ack):
         text=f"payment *rejected*: {value['price']}円",
         blocks=list(),
     )
+
+
+# listenig and responding to "unpaid"
+@app.message(re.compile("^(\s*)(unpaid)(\s*)$"))
+def message_buy(message, say):
+    # only redpond to DM
+    if message["channel_type"] != "im":
+        return
+
+    # return unpaid amount to user
+    unpaid = unpaid_amount(user_id=message["user"])
+    say(text=f"unpaid: *{unpaid}円*")
 
 
 if __name__ == "__main__":
