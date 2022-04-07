@@ -106,7 +106,7 @@ def message_pay(message, say):
 
     price = message["text"].split()[1]
 
-    if is_need_to_pay(price):
+    if is_need_to_pay(int(price), message["user"]):
         say(
             text="failed to purchase action",
             blocks=[
@@ -147,12 +147,17 @@ def message_pay(message, say):
             ],
         )
     else:
-        say(text=f"*No need* to pay {price}円")
+        say(
+            text=f"*No need* to pay {price}円\nyour unpaid amount: *{unpaid_amount(message['user'])}円*"
+        )
 
 
-def is_need_to_pay(price):
-    # check: price>=unpaid
-    return True
+def is_need_to_pay(price, user_id):
+    # check: unpaid>=unpaid
+    if unpaid_amount(user_id) >= price:
+        return True
+    else:
+        return False
 
 
 @app.action("cancel_pay_action")
