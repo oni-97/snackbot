@@ -1,4 +1,4 @@
-from mysql import execute_sql_and_commit, execute_sql_and_fetchall
+from database.mysql import execute_sql_and_commit, execute_sql_and_fetchall
 
 
 def insert_purchase_data(user_id, amount):
@@ -42,4 +42,4 @@ def select_payment_data(user_id):
         return result
     except Exception as e:
         print(e)
-        return None
+        return list()
