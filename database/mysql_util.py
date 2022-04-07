@@ -25,21 +25,11 @@ def insert_payment_data(user_id, amount):
         return False
 
 
-def select_purchase_data(user_id):
+def select_data(user_id, table_name):
     try:
-        sql = f"SELECT `amount` FROM `purchase_data` WHERE `user_id`='{user_id}'"
+        sql = f"SELECT `amount` FROM `{table_name}` WHERE `user_id`='{user_id}'"
         result = execute_sql_and_fetchall(sql)
         return result
     except Exception as e:
         print(e)
         return None
-
-
-def select_payment_data(user_id):
-    try:
-        sql = f"SELECT `amount` FROM `payment_data` WHERE `user_id`='{user_id}'"
-        result = execute_sql_and_fetchall(sql)
-        return result
-    except Exception as e:
-        print(e)
-        return list()

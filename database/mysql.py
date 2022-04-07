@@ -14,11 +14,15 @@ connection = pymysql.connect(
 def execute_sql_and_commit(sql):
     # before execute, check if the server is alive
     # If the connection is closed, reconnect
-    connection.ping(reconnect=True)
-    with connection.cursor() as cursor:
-        cursor.execute(sql)
+    try:
+        connection.ping(reconnect=True)
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
 
-    connection.commit()
+        connection.commit()
+    except Exception as e:
+        connection.rollback()
+        raise
 
 
 def execute_sql_and_fetchall(sql):

@@ -105,8 +105,11 @@ def message_pay(message, say):
         return
 
     price = message["text"].split()[1]
-
-    if is_need_to_pay(int(price), message["user"]):
+    flag, unpaid = is_need_to_pay(int(price), message["user"])
+    if flag is None:
+        admin_user = os.environ.get("SLACK_APP_ADMIN_USER")
+        say(text=f"`fail to pay: {price}円`\n`contact <@{admin_user}>`"),
+    elif flag:
         say(
             text="failed to purchase action",
             blocks=[
@@ -147,17 +150,19 @@ def message_pay(message, say):
             ],
         )
     else:
-        say(
-            text=f"*No need* to pay {price}円\nyour unpaid amount: *{unpaid_amount(message['user'])}円*"
-        )
+        say(text=f"*No need* to pay {price}円\nyour unpaid amount: *{unpaid}円*")
 
 
 def is_need_to_pay(price, user_id):
     # check: unpaid>=unpaid
-    if unpaid_amount(user_id) >= price:
-        return True
+    unpaid = unpaid_amount(user_id)
+    if unpaid is None:
+        return None, 0
+
+    if unpaid >= price:
+        return True, unpaid
     else:
-        return False
+        return False, unpaid
 
 
 @app.action("cancel_pay_action")
@@ -316,7 +321,11 @@ def message_buy(message, say):
 
     # return unpaid amount to user
     unpaid = unpaid_amount(user_id=message["user"])
-    say(text=f"unpaid: *{unpaid}円*")
+    if unpaid is None:
+        admin_user = os.environ.get("SLACK_APP_ADMIN_USER")
+        say(text=f"`fail to unpaid`\n`contact <@{admin_user}>`")
+    else:
+        say(text=f"unpaid: *{unpaid}円*")
 
 
 if __name__ == "__main__":
