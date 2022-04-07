@@ -1,10 +1,11 @@
+import datetime
 import json
 import os, re
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from database.calculator import unpaid_amount
 
-from database.mysql_util import insert_payment_data, insert_purchase_data
+from database.mysql_util import insert_payment_data, insert_purchase_data, select_data
 
 
 app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
@@ -326,6 +327,44 @@ def message_buy(message, say):
         say(text=f"`fail to unpaid`\n`contact <@{admin_user}>`")
     else:
         say(text=f"unpaid: *{unpaid}円*")
+
+
+# listenig and responding to "history"
+@app.message(re.compile("^(\s*)(history)(\s+)(buy|pay)(\s*|\s+[1-9])$"))
+def message_buy(message, say):
+    # only redpond to DM
+    if message["channel_type"] != "im":
+        return
+
+    args = message["text"].split()
+
+    # set maximum display number
+    if len(args) > 2:
+        limit = int(args[2])
+    else:
+        limit = 9
+
+    # set table name depending on arg
+    pay_or_buy = args[1]
+    if pay_or_buy == "pay":
+        table_name = "payment_data"
+    else:
+        table_name = "purchase_data"
+
+    data_list = select_data(user_id=message["user"], table_name=table_name, limit=limit)
+    if data_list is None:
+        admin_user = os.environ.get("SLACK_APP_ADMIN_USER")
+        say(text=f"`fail to history`\n`contact <@{admin_user}>`")
+    elif len(data_list) == 0:
+        say(text=f"No {args[1]} history")
+    else:
+        text = f"History {args[1]}"
+        index = 1
+        for data in data_list:
+            date = data["created_at"].strftime("%Y年%m月%d日 %H時%M分%S秒")
+            text += f"\n{index}.  {date} : {data['amount']}円"
+            index += 1
+        say(text=text)
 
 
 if __name__ == "__main__":
