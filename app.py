@@ -2,6 +2,7 @@ import json
 import os, re
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
+from database.calculator import unpaid_amount
 
 from database.mysql_util import insert_payment_data, insert_purchase_data
 
@@ -104,8 +105,11 @@ def message_pay(message, say):
         return
 
     price = message["text"].split()[1]
-
-    if is_need_to_pay(price):
+    flag, unpaid = is_need_to_pay(int(price), message["user"])
+    if flag is None:
+        admin_user = os.environ.get("SLACK_APP_ADMIN_USER")
+        say(text=f"`fail to pay: {price}円`\n`contact <@{admin_user}>`"),
+    elif flag:
         say(
             text="failed to purchase action",
             blocks=[
@@ -146,12 +150,19 @@ def message_pay(message, say):
             ],
         )
     else:
-        say(text=f"*No need* to pay {price}円")
+        say(text=f"*No need* to pay {price}円\nyour unpaid amount: *{unpaid}円*")
 
 
-def is_need_to_pay(price):
-    # check: price>=unpaid
-    return True
+def is_need_to_pay(price, user_id):
+    # check: unpaid>=unpaid
+    unpaid = unpaid_amount(user_id)
+    if unpaid is None:
+        return None, 0
+
+    if unpaid >= price:
+        return True, unpaid
+    else:
+        return False, unpaid
 
 
 @app.action("cancel_pay_action")
@@ -299,6 +310,22 @@ def reject_pay_action(payload, body, ack):
         text=f"payment *rejected*: {value['price']}円",
         blocks=list(),
     )
+
+
+# listenig and responding to "unpaid"
+@app.message(re.compile("^(\s*)(unpaid)(\s*)$"))
+def message_buy(message, say):
+    # only redpond to DM
+    if message["channel_type"] != "im":
+        return
+
+    # return unpaid amount to user
+    unpaid = unpaid_amount(user_id=message["user"])
+    if unpaid is None:
+        admin_user = os.environ.get("SLACK_APP_ADMIN_USER")
+        say(text=f"`fail to unpaid`\n`contact <@{admin_user}>`")
+    else:
+        say(text=f"unpaid: *{unpaid}円*")
 
 
 if __name__ == "__main__":
