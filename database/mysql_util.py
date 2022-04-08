@@ -25,9 +25,9 @@ def insert_payment_data(user_id, amount):
         return False
 
 
-def insert_coffee_or_tea_data(user_id, amount, item_name):
+def insert_purchase_coffee_data(user_id, amount, item_name):
     try:
-        sql = f"insert into coffee_or_tea_data(user_id, amount, item_name)values('{user_id}', '{amount}', '{item_name}')"
+        sql = f"insert into purchase_coffee_data(user_id, amount, item_name)values('{user_id}', '{amount}', '{item_name}')"
         execute_sql_and_commit(sql)
         return True
     except Exception as e:
