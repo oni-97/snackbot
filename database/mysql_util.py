@@ -25,6 +25,16 @@ def insert_payment_data(user_id, amount):
         return False
 
 
+def insert_coffee_or_tea_data(user_id, amount, item_name):
+    try:
+        sql = f"insert into coffee_or_tea_data(user_id, amount, item_name)values('{user_id}', '{amount}', '{item_name}')"
+        execute_sql_and_commit(sql)
+        return True
+    except Exception as e:
+        print(e)
+        return False
+
+
 def select_data(user_id, table_name, limit=None):
     try:
         if limit is None:
