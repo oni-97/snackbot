@@ -25,9 +25,12 @@ def insert_payment_data(user_id, amount):
         return False
 
 
-def select_data(user_id, table_name):
+def select_data(user_id, table_name, limit=None):
     try:
-        sql = f"SELECT `amount` FROM `{table_name}` WHERE `user_id`='{user_id}'"
+        if limit is None:
+            sql = f"SELECT * FROM {table_name} WHERE user_id='{user_id}'"
+        else:
+            sql = f"SELECT * FROM {table_name} WHERE user_id='{user_id}' ORDER BY id DESC LIMIT {limit}"
         result = execute_sql_and_fetchall(sql)
         return result
     except Exception as e:
