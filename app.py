@@ -5,7 +5,12 @@ from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from database.calculator import unpaid_amount
 
-from database.mysql_util import insert_payment_data, insert_purchase_data, select_data
+from database.mysql_util import (
+    insert_coffee_or_tea_data,
+    insert_payment_data,
+    insert_purchase_data,
+    select_data,
+)
 
 
 app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
@@ -365,6 +370,107 @@ def message_buy(message, say):
             text += f"\n{index}.  {date} : {data['amount']}円"
             index += 1
         say(text=text)
+
+
+# listenig and responding to "coffee" or "tea"
+@app.message(re.compile("^(\s*)(coffee|tea)(\s*)$"))
+def message_coffee_or_tea(message, say):
+    # only redpond to DM
+    if message["channel_type"] != "im":
+        return
+
+    coffee_or_tea = message["text"].replace(" ", "")
+    if coffee_or_tea == "coffee":
+        price = 20
+    elif coffee_or_tea == "tea":
+        price = 20
+    else:
+        price = 0
+
+    value = json.dumps(
+        {
+            "price": price,
+            "item_name": coffee_or_tea,
+        }
+    )
+
+    say(
+        text="you are not suppprted",
+        blocks=[
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"Confirm Purchase\n• {coffee_or_tea}: *{price}円*",
+                },
+            },
+            {
+                "type": "actions",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Buy", "emoji": True},
+                        "style": "primary",
+                        "value": value,
+                        "action_id": "take_coffee_or_tea_action",
+                    },
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Cancel", "emoji": True},
+                        "style": "danger",
+                        "value": value,
+                        "action_id": "cancel_coffee_or_tea_action",
+                    },
+                ],
+            },
+        ],
+    )
+
+
+@app.action("take_coffee_or_tea_action")
+def take_coffee_or_tea_action(payload, body, ack):
+    # Acknowledge the action
+    ack()
+
+    value = json.loads(payload["value"])
+    # buy button pushed, update message
+    result = app.client.chat_update(
+        channel=body["channel"]["id"],
+        ts=body["message"]["ts"],
+        text=f"purchasing...",
+        blocks=list(),
+    )
+
+    # insert data into DB and update message responding to the result
+    user_id = body["user"]["id"]
+    if insert_coffee_or_tea_data(user_id, int(value["price"]), value["item_name"]):
+        app.client.chat_update(
+            channel=result["channel"],
+            ts=result["ts"],
+            text=f"*success* to {value['item_name']}: {value['price']}円",
+        )
+    else:
+        admin_user = os.environ.get("SLACK_APP_ADMIN_USER")
+        app.client.chat_update(
+            channel=result["channel"],
+            ts=result["ts"],
+            text=f"`fail to {value['item_name']}: {value['price']}円`\n`contact <@{admin_user}>`",
+        )
+
+
+@app.action("cancel_coffee_or_tea_action")
+def cancel_coffee_or_tea_action(payload, body, ack):
+    # Acknowledge the action
+    ack()
+
+    value = json.loads(payload["value"])
+    # cancel button pushed, update message
+    app.client.chat_update(
+        channel=body["channel"]["id"],
+        ts=body["message"]["ts"],
+        text=f"*canceled* {value['item_name']}: {value['price']}円",
+        blocks=list(),
+    )
 
 
 if __name__ == "__main__":
