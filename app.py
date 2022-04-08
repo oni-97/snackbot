@@ -6,8 +6,8 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 from database.calculator import unpaid_amount
 
 from database.mysql_util import (
-    insert_coffee_or_tea_data,
     insert_payment_data,
+    insert_purchase_coffee_data,
     insert_purchase_data,
     select_data,
 )
@@ -326,12 +326,12 @@ def message_buy(message, say):
         return
 
     # return unpaid amount to user
-    unpaid = unpaid_amount(user_id=message["user"])
-    if unpaid is None:
+    unpaid, unpaid_coffee = unpaid_amount(user_id=message["user"])
+    if (unpaid is None) or (unpaid_coffee is None):
         admin_user = os.environ.get("SLACK_APP_ADMIN_USER")
         say(text=f"`fail to unpaid`\n`contact <@{admin_user}>`")
     else:
-        say(text=f"unpaid: *{unpaid}円*")
+        say(text=f"Unpaid\n• coffee: *{unpaid_coffee}円*\n• other: *{unpaid}円*\n")
 
 
 # listenig and responding to "history"
@@ -443,7 +443,7 @@ def take_coffee_or_tea_action(payload, body, ack):
 
     # insert data into DB and update message responding to the result
     user_id = body["user"]["id"]
-    if insert_coffee_or_tea_data(user_id, int(value["price"]), value["item_name"]):
+    if insert_purchase_coffee_data(user_id, int(value["price"]), value["item_name"]):
         app.client.chat_update(
             channel=result["channel"],
             ts=result["ts"],
