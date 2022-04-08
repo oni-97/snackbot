@@ -58,7 +58,7 @@ def message_buy(message, say):
 
 
 @app.action("take_buy_action")
-def take_buy_action(payload, body, ack):
+def take_buy_action(say, payload, body, ack):
     # Acknowledge the action
     ack()
 
@@ -79,6 +79,8 @@ def take_buy_action(payload, body, ack):
             ts=result["ts"],
             text=f"*success* to purchase: {price}円",
         )
+
+        notify_unpaid_amount(say=say, user_id=user_id)
     else:
         admin_user = os.environ.get("SLACK_APP_ADMIN_USER")
         app.client.chat_update(
@@ -161,7 +163,7 @@ def message_pay(message, say):
 
 def is_need_to_pay(price, user_id):
     # check: unpaid>=unpaid
-    unpaid = unpaid_amount(user_id)
+    unpaid, unpaid_coffee = unpaid_amount(user_id)
     if unpaid is None:
         return None, 0
 
@@ -276,6 +278,10 @@ def approve_pay_action(payload, body, ack):
             text=f"*success* to pay: {value['price']}円",
             blocks=list(),
         )
+
+        notify_unpaid_amount(
+            user_id=value["payer_id"], channel=value["channel_of_payer"]
+        )
     else:
         # update admin message
         app.client.chat_update(
@@ -326,12 +332,24 @@ def message_buy(message, say):
         return
 
     # return unpaid amount to user
-    unpaid, unpaid_coffee = unpaid_amount(user_id=message["user"])
+    notify_unpaid_amount(say=say, user_id=message["user"])
+
+
+def notify_unpaid_amount(user_id, say=None, channel=None):
+    unpaid, unpaid_coffee = unpaid_amount(user_id=user_id)
     if (unpaid is None) or (unpaid_coffee is None):
         admin_user = os.environ.get("SLACK_APP_ADMIN_USER")
-        say(text=f"`fail to unpaid`\n`contact <@{admin_user}>`")
+        text = f"`fail to unpaid`\n`contact <@{admin_user}>`"
+        if say is not None:
+            say(text=text)
+        elif channel is not None:
+            app.client.chat_postMessage(channel=channel, text=text)
     else:
-        say(text=f"Unpaid\n• coffee: *{unpaid_coffee}円*\n• other: *{unpaid}円*\n")
+        text = f"Unpaid\n• coffee: *{unpaid_coffee}円*\n• other: *{unpaid}円*\n"
+        if say is not None:
+            say(text=text)
+        elif channel is not None:
+            app.client.chat_postMessage(channel=channel, text=text)
 
 
 # listenig and responding to "history"
@@ -428,7 +446,7 @@ def message_coffee_or_tea(message, say):
 
 
 @app.action("take_coffee_or_tea_action")
-def take_coffee_or_tea_action(payload, body, ack):
+def take_coffee_or_tea_action(say, payload, body, ack):
     # Acknowledge the action
     ack()
 
@@ -449,6 +467,8 @@ def take_coffee_or_tea_action(payload, body, ack):
             ts=result["ts"],
             text=f"*success* to {value['item_name']}: {value['price']}円",
         )
+
+        notify_unpaid_amount(say=say, user_id=user_id)
     else:
         admin_user = os.environ.get("SLACK_APP_ADMIN_USER")
         app.client.chat_update(
