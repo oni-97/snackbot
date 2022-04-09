@@ -106,18 +106,27 @@ def cancel_buy_action(payload, body, ack):
 
 
 # listenig and responding to "pay <natural number>"
-@app.message(re.compile("^(\s*)(pay)(\s+)([1-9][0-9]*)(\s*)$"))
+@app.message(re.compile("^(\s*)(pay)(\s+)(other|coffee)(\s+)([1-9][0-9]*)(\s*)$"))
 def message_pay(message, say):
     # only redpond to DM
     if message["channel_type"] != "im":
         return
 
-    price = message["text"].split()[1]
-    flag, unpaid = is_need_to_pay(int(price), message["user"])
+    price = message["text"].split()[2]
+    other_or_coffee = message["text"].split()[1]
+    flag, unpaid, unpaid_coffee = is_need_to_pay(
+        int(price), message["user"], other_or_coffee
+    )
     if flag is None:
         admin_user = os.environ.get("SLACK_APP_ADMIN_USER")
         say(text=f"`fail to pay: {price}円`\n`contact <@{admin_user}>`"),
     elif flag:
+        value = json.dumps(
+            {
+                "price": price,
+                "other_or_coffee": other_or_coffee,
+            }
+        )
         say(
             text="failed to purchase action",
             blocks=[
@@ -125,7 +134,7 @@ def message_pay(message, say):
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": f"Confirm Payment\n• Price: *{price}円*",
+                        "text": f"Confirm Payment {other_or_coffee}\n• Price: *{price}円*",
                     },
                 },
                 {
@@ -139,7 +148,7 @@ def message_pay(message, say):
                                 "emoji": True,
                             },
                             "style": "primary",
-                            "value": price,
+                            "value": value,
                             "action_id": "take_pay_action",
                         },
                         {
@@ -150,7 +159,7 @@ def message_pay(message, say):
                                 "emoji": True,
                             },
                             "style": "danger",
-                            "value": price,
+                            "value": value,
                             "action_id": "cancel_pay_action",
                         },
                     ],
@@ -158,19 +167,27 @@ def message_pay(message, say):
             ],
         )
     else:
-        say(text=f"*No need* to pay {price}円\nyour unpaid amount: *{unpaid}円*")
+        say(
+            text=f"*No need* to pay {other_or_coffee} {price}円\nUnpaid\n• coffee: *{unpaid_coffee}円*\n• other: *{unpaid}円*\n"
+        )
 
 
-def is_need_to_pay(price, user_id):
+def is_need_to_pay(price, user_id, other_or_coffee):
     # check: unpaid>=unpaid
     unpaid, unpaid_coffee = unpaid_amount(user_id)
-    if unpaid is None:
-        return None, 0
-
-    if unpaid >= price:
-        return True, unpaid
+    if other_or_coffee == "other":
+        target = unpaid
+    elif other_or_coffee == "coffee":
+        target = unpaid_coffee
     else:
-        return False, unpaid
+        target = None
+
+    if target is None:
+        return None, 0, 0
+    elif target >= price:
+        return True, unpaid, unpaid_coffee
+    else:
+        return False, unpaid, unpaid_coffee
 
 
 @app.action("cancel_pay_action")
@@ -178,12 +195,12 @@ def cancel_pay_action(payload, body, ack):
     # Acknowledge the action
     ack()
 
-    price = payload["value"]
+    value = json.loads(payload["value"])
     # cancel button pushed, update message
     app.client.chat_update(
         channel=body["channel"]["id"],
         ts=body["message"]["ts"],
-        text=f"*canceled* payment: {price}円",
+        text=f"*canceled* payment {value['other_or_coffee']}: {value['price']}円",
         blocks=list(),
     )
 
@@ -193,12 +210,12 @@ def take_pay_action(payload, body, ack, say):
     # Acknowledge the action
     ack()
 
-    price = payload["value"]
+    value = json.loads(payload["value"])
     # pay button pushed, update message
     result = app.client.chat_update(
         channel=body["channel"]["id"],
         ts=body["message"]["ts"],
-        text=f"paying {price}円 ...",
+        text=f"paying {value['price']}円 ...",
         blocks=list(),
     )
 
@@ -206,10 +223,11 @@ def take_pay_action(payload, body, ack, say):
     user_id = body["user"]["id"]
     button_value = json.dumps(
         {
-            "price": price,
+            "price": value["price"],
             "payer_id": user_id,
             "ts_of_payer_msg": result["ts"],
             "channel_of_payer": result["channel"],
+            "other_or_coffee": value["other_or_coffee"],
         }
     )
     say(
@@ -220,7 +238,7 @@ def take_pay_action(payload, body, ack, say):
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"Payment request\n• Price: *{price}円*\n• User: *<@{user_id}>*",
+                    "text": f"Payment request\n• Price: *{value['price']}円*\n• User: *<@{user_id}>*",
                 },
             },
             {
@@ -260,14 +278,22 @@ def approve_pay_action(payload, body, ack):
     ack()
 
     value = json.loads(payload["value"])
+
+    if value["other_or_coffee"] == "other":
+        table_name = "payment_data"
+    elif value["other_or_coffee"] == "coffee":
+        table_name = "payment_coffee_data"
+    else:
+        table_name = None
+
     # approve button pushed, perform DB operation
-    if insert_payment_data(value["payer_id"], value["price"]):
+    if insert_payment_data(value["payer_id"], value["price"], table_name=table_name):
         # update admin message
         action_user = body["user"]["id"]
         app.client.chat_update(
             channel=body["channel"]["id"],
             ts=body["message"]["ts"],
-            text=f"*<@{action_user}> approved* payment\n• Price: {value['price']}円\n• User:  <@{value['payer_id']}>",
+            text=f"*<@{action_user}> approved* payment {value['other_or_coffee']}\n• Price: {value['price']}円\n• User:  <@{value['payer_id']}>",
             blocks=list(),
         )
 
@@ -275,7 +301,7 @@ def approve_pay_action(payload, body, ack):
         app.client.chat_update(
             channel=value["channel_of_payer"],
             ts=value["ts_of_payer_msg"],
-            text=f"*success* to pay: {value['price']}円",
+            text=f"*success* to pay {value['other_or_coffee']}: {value['price']}円",
             blocks=list(),
         )
 
@@ -296,7 +322,7 @@ def approve_pay_action(payload, body, ack):
         app.client.chat_update(
             channel=value["channel_of_payer"],
             ts=value["ts_of_payer_msg"],
-            text=f"`fail to pay: {value['price']}円`\n`contact <@{admin_user}>`",
+            text=f"`fail to pay {value['other_or_coffee']}: {value['price']}円`\n`contact <@{admin_user}>`",
         )
 
 
@@ -311,7 +337,7 @@ def reject_pay_action(payload, body, ack):
     app.client.chat_update(
         channel=body["channel"]["id"],
         ts=body["message"]["ts"],
-        text=f"*<@{action_user}> rejected* payment\n• Price: {value['price']}円\n• User:  <@{value['payer_id']}>",
+        text=f"*<@{action_user}> rejected* payment {value['other_or_coffee']}\n• Price: {value['price']}円\n• User:  <@{value['payer_id']}>",
         blocks=list(),
     )
 
@@ -319,7 +345,7 @@ def reject_pay_action(payload, body, ack):
     app.client.chat_update(
         channel=value["channel_of_payer"],
         ts=value["ts_of_payer_msg"],
-        text=f"payment *rejected*: {value['price']}円",
+        text=f"payment {value['other_or_coffee']} *rejected*: {value['price']}円",
         blocks=list(),
     )
 
