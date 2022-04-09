@@ -238,7 +238,7 @@ def take_pay_action(payload, body, ack, say):
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"Payment request\n• Price: *{value['price']}円*\n• User: *<@{user_id}>*",
+                    "text": f"Payment request *{value['other_or_coffee']}*\n• Price: *{value['price']}円*\n• User: *<@{user_id}>*",
                 },
             },
             {
@@ -287,7 +287,12 @@ def approve_pay_action(payload, body, ack):
         table_name = None
 
     # approve button pushed, perform DB operation
-    if insert_payment_data(value["payer_id"], value["price"], table_name=table_name):
+    if insert_payment_data(
+        value["payer_id"],
+        value["price"],
+        table_name=table_name,
+        apporover=body["user"]["id"],
+    ):
         # update admin message
         action_user = body["user"]["id"]
         app.client.chat_update(
