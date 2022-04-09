@@ -13,10 +13,10 @@ def insert_purchase_data(user_id, amount):
         return False
 
 
-def insert_payment_data(user_id, amount):
+def insert_payment_data(user_id, amount, table_name):
     try:
         sql = (
-            f"insert into payment_data(user_id, amount)values('{user_id}', '{amount}')"
+            f"insert into {table_name}(user_id, amount)values('{user_id}', '{amount}')"
         )
         execute_sql_and_commit(sql)
         return True
