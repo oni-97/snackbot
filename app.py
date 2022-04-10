@@ -524,5 +524,10 @@ def cancel_coffee_or_tea_action(payload, body, ack):
     )
 
 
+@app.event("message")
+def handle_message_events(body, logger):
+    logger.info(body)
+
+
 if __name__ == "__main__":
     SocketModeHandler(app, os.environ["SLACK_APP_TOKEN"]).start()
