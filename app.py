@@ -4,6 +4,7 @@ import os, re
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from database.calculator import unpaid_amount
+import textwrap
 
 from database.mysql_util import (
     insert_payment_data,
@@ -527,6 +528,32 @@ def cancel_coffee_or_tea_action(payload, body, ack):
         text=f"*canceled* {value['item_name']}: {value['price']}円",
         blocks=list(),
     )
+
+
+# listenig and responding to "help"
+@app.message(re.compile("^(\s*)(help)(\s*)$"))
+def message_help(message, say):
+    # only redpond to DM
+    if message["channel_type"] != "im":
+        return
+
+    # return usage of commnad to user
+    text = textwrap.dedent(
+        """
+    ・購入
+        - *buy (金額)*  : お菓子など(e.g. buy 200)
+        - *coffee*  : コーヒー・紅茶
+    ・支払い
+        - *pay other (金額)*  : お菓子など
+        - *pay coffee (金額)*  : コーヒー・紅茶
+    ・履歴（10件）
+        - *history buy*  : 購入履歴
+        - *history pay*  : 支払い
+    ・未払い
+        - *unpaid*
+    """
+    )
+    say(text=text)
 
 
 @app.event("message")
