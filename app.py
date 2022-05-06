@@ -357,7 +357,7 @@ def reject_pay_action(payload, body, ack):
 
 # listenig and responding to "unpaid"
 @app.message(re.compile("^(\s*)(unpaid)(\s*)$"))
-def message_buy(message, say):
+def message_unpaid(message, say):
     # only redpond to DM
     if message["channel_type"] != "im":
         return
@@ -385,7 +385,7 @@ def notify_unpaid_amount(user_id, say=None, channel=None):
 
 # listenig and responding to "history"
 @app.message(re.compile("^(\s*)(history)(\s+)(buy|pay)(\s*|\s+[1-9])$"))
-def message_buy(message, say):
+def message_history(message, say):
     # only redpond to DM
     if message["channel_type"] != "im":
         return
