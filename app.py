@@ -405,7 +405,12 @@ def message_buy(message, say):
     else:
         table_name = "purchase_data"
 
-    data_list = select_data(user_id=message["user"], table_name=table_name, limit=limit)
+    data_list = select_data(
+        user_id=message["user"],
+        table_name=table_name,
+        limit=limit,
+        item="created_at, amount",
+    )
     if data_list is None:
         admin_user = os.environ.get("SLACK_APP_ADMIN_USER")
         say(text=f"`fail to history`\n`contact <@{admin_user}>`")
