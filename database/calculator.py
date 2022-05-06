@@ -18,7 +18,7 @@ def total_amount_of_coffee_purchase(user_id):
 
 
 def caluculate_total_amount(user_id, table_name):
-    data_list = select_data(user_id=user_id, table_name=table_name)
+    data_list = select_data(user_id=user_id, table_name=table_name, item="amount")
     if data_list is None:
         return None
 

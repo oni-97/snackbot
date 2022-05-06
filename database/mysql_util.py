@@ -33,12 +33,12 @@ def insert_purchase_coffee_data(user_id, amount, item_name):
         return False
 
 
-def select_data(user_id, table_name, limit=None):
+def select_data(user_id, table_name, limit=None, item="*"):
     try:
         if limit is None:
-            sql = f"SELECT * FROM {table_name} WHERE user_id='{user_id}'"
+            sql = f"SELECT {item} FROM {table_name} WHERE user_id='{user_id}'"
         else:
-            sql = f"SELECT * FROM {table_name} WHERE user_id='{user_id}' ORDER BY id DESC LIMIT {limit}"
+            sql = f"SELECT {item} FROM {table_name} WHERE user_id='{user_id}' ORDER BY id DESC LIMIT {limit}"
         result = execute_sql_and_fetchall(sql)
         return result
     except Exception as e:
