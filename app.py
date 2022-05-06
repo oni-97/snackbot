@@ -556,6 +556,15 @@ def message_help(message, say):
     say(text=text)
 
 
+@app.message(re.compile(".+"))
+def message_all(message, say):
+    # only redpond to DM
+    if message["channel_type"] != "im":
+        return
+
+    say(text='use commnad "*help*"')
+
+
 @app.event("message")
 def handle_message_events(body, logger):
     logger.info(body)
