@@ -563,6 +563,11 @@ def message_help(message, say):
     if message["channel_type"] != "im":
         return
 
+    # only respond to admin user
+    admin_user = os.environ.get("SLACK_APP_ADMIN_USER")
+    if message["user"] != admin_user:
+        return
+
 
 @app.message(re.compile(".+"))
 def message_all(message, say):
