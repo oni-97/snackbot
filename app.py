@@ -556,6 +556,14 @@ def message_help(message, say):
     say(text=text)
 
 
+# listenig and responding to "remind"
+@app.message(re.compile("^(\s*)(remind)(\s*)$"))
+def message_help(message, say):
+    # only redpond to DM
+    if message["channel_type"] != "im":
+        return
+
+
 @app.message(re.compile(".+"))
 def message_all(message, say):
     # only redpond to DM
