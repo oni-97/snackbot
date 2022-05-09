@@ -10,6 +10,7 @@ from database.mysql_util import (
     insert_payment_data,
     insert_purchase_coffee_data,
     insert_purchase_data,
+    insert_user_data,
     select_data,
 )
 
@@ -588,6 +589,24 @@ def message_all(message, say):
 @app.event("message")
 def handle_message_events(body, logger):
     logger.info(body)
+
+
+def register_user(user_id):
+    if not is_registerd(user_id):
+        insert_user_data(user_id)
+
+
+def is_registerd(user_id):
+    data_list = select_data(
+        user_id=user_id,
+        table_name="user_data",
+        item="user_id",
+    )
+
+    if data_list is None:
+        return False
+    else:
+        return True
 
 
 if __name__ == "__main__":
