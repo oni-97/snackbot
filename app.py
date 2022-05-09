@@ -24,6 +24,9 @@ def message_buy(message, say):
     if message["channel_type"] != "im":
         return
 
+    # register user if not registerd
+    register_user(message["user"])
+
     price = message["text"].split()[1]
 
     say(
@@ -113,6 +116,9 @@ def message_pay(message, say):
     # only redpond to DM
     if message["channel_type"] != "im":
         return
+
+    # register user if not registerd
+    register_user(message["user"])
 
     price = message["text"].split()[2]
     other_or_coffee = message["text"].split()[1]
@@ -603,7 +609,7 @@ def is_registerd(user_id):
         item="user_id",
     )
 
-    if data_list is None:
+    if (data_list is None) or (len(data_list) == 0):
         return False
     else:
         return True
