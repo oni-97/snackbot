@@ -568,6 +568,13 @@ def message_help(message, say):
     if message["user"] != admin_user:
         return
 
+    # remind the users who should pay
+    remind_unpaid_users()
+
+
+def remind_unpaid_users():
+    return
+
 
 @app.message(re.compile(".+"))
 def message_all(message, say):
