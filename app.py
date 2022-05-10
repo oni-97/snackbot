@@ -390,6 +390,8 @@ def notify_unpaid_amount(user_id, say=None, channel=None):
             say(text=text)
         elif channel is not None:
             app.client.chat_postMessage(channel=channel, text=text)
+        else:
+            app.client.chat_postMessage(channel=user_id, text=text)
 
         if unpaid_coffee == 0 and unpaid == 0:
             delete_usert_data(user_id)
@@ -587,7 +589,18 @@ def message_help(message, say):
 
 
 def remind_unpaid_users():
-    return
+    data_list = select_data(
+        table_name="user_data",
+        item="user_id",
+    )
+
+    if data_list is None:
+        return False
+    else:
+        print("here")
+        for data in data_list:
+            notify_unpaid_amount(data["user_id"])
+        return True
 
 
 @app.message(re.compile(".+"))
