@@ -375,7 +375,7 @@ def message_unpaid(message, say):
     notify_unpaid_amount(say=say, user_id=message["user"])
 
 
-def notify_unpaid_amount(user_id, say=None, channel=None):
+def notify_unpaid_amount(user_id, say=None, channel=None, min_val=0):
     unpaid, unpaid_coffee = unpaid_amount(user_id=user_id)
     if (unpaid is None) or (unpaid_coffee is None):
         admin_user = os.environ.get("SLACK_APP_ADMIN_USER")
@@ -385,13 +385,14 @@ def notify_unpaid_amount(user_id, say=None, channel=None):
         elif channel is not None:
             app.client.chat_postMessage(channel=channel, text=text)
     else:
-        text = f"Unpaid\n• coffee: *{unpaid_coffee}円*\n• other: *{unpaid}円*\n"
-        if say is not None:
-            say(text=text)
-        elif channel is not None:
-            app.client.chat_postMessage(channel=channel, text=text)
-        else:
-            app.client.chat_postMessage(channel=user_id, text=text)
+        if unpaid >= min_val or unpaid_coffee >= min_val:
+            text = f"Unpaid\n• coffee: *{unpaid_coffee}円*\n• other: *{unpaid}円*\n"
+            if say is not None:
+                say(text=text)
+            elif channel is not None:
+                app.client.chat_postMessage(channel=channel, text=text)
+            else:
+                app.client.chat_postMessage(channel=user_id, text=text)
 
         if unpaid_coffee == 0 and unpaid == 0:
             delete_usert_data(user_id)
@@ -581,7 +582,7 @@ def message_help(message, say):
 
 
 # listenig and responding to "remind"
-@app.message(re.compile("^(\s*)(remind)(\s*)$"))
+@app.message(re.compile("^(\s*)(remind)(\s*|\s+[1-9])$"))
 def message_help(message, say):
     # only redpond to DM
     if message["channel_type"] != "im":
@@ -592,11 +593,19 @@ def message_help(message, say):
     if message["user"] != admin_user:
         return
 
+    args = message["text"].split()
+
+    # set maximum display number
+    if len(args) > 2:
+        min_val = int(args[2])
+    else:
+        min_val = 0
+
     # remind the users who should pay
-    remind_unpaid_users()
+    remind_unpaid_users(min_val=min_val)
 
 
-def remind_unpaid_users():
+def remind_unpaid_users(min_val):
     data_list = select_data(
         table_name="user_data",
         item="user_id",
@@ -606,7 +615,7 @@ def remind_unpaid_users():
         return False
     else:
         for data in data_list:
-            notify_unpaid_amount(data["user_id"])
+            notify_unpaid_amount(user_id=data["user_id"], min_val=min_val)
         return True
 
 
