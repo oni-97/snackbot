@@ -597,10 +597,45 @@ def remind_unpaid_users():
     if data_list is None:
         return False
     else:
-        print("here")
         for data in data_list:
             notify_unpaid_amount(data["user_id"])
         return True
+
+
+# listenig and responding to "list"
+@app.message(re.compile("^(\s*)(list)(\s*)$"))
+def message_help(message, say):
+    # only redpond to DM
+    if message["channel_type"] != "im":
+        return
+
+    # only respond to admin user
+    admin_user = os.environ.get("SLACK_APP_ADMIN_USER")
+    if message["user"] != admin_user:
+        return
+
+    # return list of the users who should pay
+    list_unpaid_users(message["user"])
+
+
+def list_unpaid_users(return_user):
+    data_list = select_data(
+        table_name="user_data",
+        item="user_id",
+    )
+
+    text = "Unpaid List\nuser, coffee, other\n"
+    for data in data_list:
+        unpaid, unpaid_coffee = unpaid_amount(user_id=data["user_id"])
+        if (unpaid is None) or (unpaid_coffee is None):
+            admin_user = os.environ.get("SLACK_APP_ADMIN_USER")
+            text = f"`fail to lsit`\n`contact <@{admin_user}>`"
+            app.client.chat_postMessage(channel=return_user, text=text)
+        else:
+            text += f"<@{data['user_id']}> , {unpaid_coffee} , {unpaid}\n"
+
+    app.client.chat_postMessage(channel=return_user, text=text)
+    return
 
 
 @app.message(re.compile(".+"))
