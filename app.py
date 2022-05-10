@@ -603,6 +603,26 @@ def remind_unpaid_users():
         return True
 
 
+# listenig and responding to "list"
+@app.message(re.compile("^(\s*)(list)(\s*)$"))
+def message_help(message, say):
+    # only redpond to DM
+    if message["channel_type"] != "im":
+        return
+
+    # only respond to admin user
+    admin_user = os.environ.get("SLACK_APP_ADMIN_USER")
+    if message["user"] != admin_user:
+        return
+
+    # return list of the users who should pay
+    list_unpaid_users(message["user"])
+
+
+def list_unpaid_users(return_user):
+    return
+
+
 @app.message(re.compile(".+"))
 def message_all(message, say):
     # only redpond to DM
