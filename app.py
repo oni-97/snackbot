@@ -1,4 +1,4 @@
-import datetime
+from dateutil import tz
 import json
 import os, re
 from slack_bolt import App
@@ -434,7 +434,15 @@ def message_history(message, say):
         text = f"History {args[1]}"
         index = 1
         for data in data_list:
-            date = data["created_at"].strftime("%Y年%m月%d日 %H時%M分%S秒")
+            JST = tz.gettz("Asia/Tokyo")
+            UTC = tz.gettz("UTC")
+            date_jst = (
+                data["created_at"]
+                .replace(tzinfo=UTC)
+                .astimezone(JST)
+                .replace(tzinfo=None)
+            )
+            date = date_jst.strftime("%Y年%m月%d日 %H時%M分%S秒")
             text += f"\n{index}.  {date} : {data['amount']}円"
             index += 1
         say(text=text)
