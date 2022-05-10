@@ -43,10 +43,14 @@ def insert_user_data(user_id):
         return False
 
 
-def select_data(user_id, table_name, limit=None, item="*"):
+def select_data(table_name, user_id=None, limit=None, item="*"):
     try:
-        if limit is None:
+        if limit is None and user_id is None:
+            sql = f"SELECT {item} FROM {table_name}"
+        elif limit is None:
             sql = f"SELECT {item} FROM {table_name} WHERE user_id='{user_id}'"
+        elif user_id is None:
+            sql = f"SELECT {item} FROM {table_name} ORDER BY id DESC LIMIT {limit}"
         else:
             sql = f"SELECT {item} FROM {table_name} WHERE user_id='{user_id}' ORDER BY id DESC LIMIT {limit}"
         result = execute_sql_and_fetchall(sql)
