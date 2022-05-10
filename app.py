@@ -7,9 +7,11 @@ from database.calculator import unpaid_amount
 import textwrap
 
 from database.mysql_util import (
+    delete_usert_data,
     insert_payment_data,
     insert_purchase_coffee_data,
     insert_purchase_data,
+    insert_user_data,
     select_data,
 )
 
@@ -22,6 +24,9 @@ def message_buy(message, say):
     # only redpond to DM
     if message["channel_type"] != "im":
         return
+
+    # register user if not registerd
+    register_user(message["user"])
 
     price = message["text"].split()[1]
 
@@ -112,6 +117,9 @@ def message_pay(message, say):
     # only redpond to DM
     if message["channel_type"] != "im":
         return
+
+    # register user if not registerd
+    register_user(message["user"])
 
     price = message["text"].split()[2]
     other_or_coffee = message["text"].split()[1]
@@ -382,6 +390,11 @@ def notify_unpaid_amount(user_id, say=None, channel=None):
             say(text=text)
         elif channel is not None:
             app.client.chat_postMessage(channel=channel, text=text)
+        else:
+            app.client.chat_postMessage(channel=user_id, text=text)
+
+        if unpaid_coffee == 0 and unpaid == 0:
+            delete_usert_data(user_id)
 
 
 # listenig and responding to "history"
@@ -433,6 +446,9 @@ def message_coffee_or_tea(message, say):
     # only redpond to DM
     if message["channel_type"] != "im":
         return
+
+    # register user if not registerd
+    register_user(message["user"])
 
     coffee_or_tea = message["text"].replace(" ", "")
     if coffee_or_tea == "coffee":
@@ -556,6 +572,37 @@ def message_help(message, say):
     say(text=text)
 
 
+# listenig and responding to "remind"
+@app.message(re.compile("^(\s*)(remind)(\s*)$"))
+def message_help(message, say):
+    # only redpond to DM
+    if message["channel_type"] != "im":
+        return
+
+    # only respond to admin user
+    admin_user = os.environ.get("SLACK_APP_ADMIN_USER")
+    if message["user"] != admin_user:
+        return
+
+    # remind the users who should pay
+    remind_unpaid_users()
+
+
+def remind_unpaid_users():
+    data_list = select_data(
+        table_name="user_data",
+        item="user_id",
+    )
+
+    if data_list is None:
+        return False
+    else:
+        print("here")
+        for data in data_list:
+            notify_unpaid_amount(data["user_id"])
+        return True
+
+
 @app.message(re.compile(".+"))
 def message_all(message, say):
     # only redpond to DM
@@ -568,6 +615,24 @@ def message_all(message, say):
 @app.event("message")
 def handle_message_events(body, logger):
     logger.info(body)
+
+
+def register_user(user_id):
+    if not is_registerd(user_id):
+        insert_user_data(user_id)
+
+
+def is_registerd(user_id):
+    data_list = select_data(
+        user_id=user_id,
+        table_name="user_data",
+        item="user_id",
+    )
+
+    if (data_list is None) or (len(data_list) == 0):
+        return False
+    else:
+        return True
 
 
 if __name__ == "__main__":
