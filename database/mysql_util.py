@@ -54,3 +54,13 @@ def select_data(user_id, table_name, limit=None, item="*"):
     except Exception as e:
         print(e)
         return None
+
+
+def delete_usert_data(user_id):
+    try:
+        sql = f"DELETE FROM user_data WHERE user_id='{user_id}'"
+        execute_sql_and_commit(sql)
+        return True
+    except Exception as e:
+        print(e)
+        return False

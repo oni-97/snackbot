@@ -7,6 +7,7 @@ from database.calculator import unpaid_amount
 import textwrap
 
 from database.mysql_util import (
+    delete_usert_data,
     insert_payment_data,
     insert_purchase_coffee_data,
     insert_purchase_data,
@@ -390,6 +391,9 @@ def notify_unpaid_amount(user_id, say=None, channel=None):
         elif channel is not None:
             app.client.chat_postMessage(channel=channel, text=text)
 
+        if unpaid_coffee == 0 and unpaid == 0:
+            delete_usert_data(user_id)
+
 
 # listenig and responding to "history"
 @app.message(re.compile("^(\s*)(history)(\s+)(buy|pay)(\s*|\s+[1-9])$"))
@@ -440,6 +444,9 @@ def message_coffee_or_tea(message, say):
     # only redpond to DM
     if message["channel_type"] != "im":
         return
+
+    # register user if not registerd
+    register_user(message["user"])
 
     coffee_or_tea = message["text"].replace(" ", "")
     if coffee_or_tea == "coffee":
